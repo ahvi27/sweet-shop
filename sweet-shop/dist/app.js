@@ -1,0 +1,86 @@
+"use strict";
+const products = [
+    { id: 'macarons', name: 'Pastel Macaron Box', category: 'Macarons', description: 'Six little bites of colorful happiness.', portion: 'Box of 6', price: 16, image: 'macarons', color: '#efe4ef', badge: 'Sweet favorite', allergens: 'Eggs, milk, almonds' },
+    { id: 'truffles', name: 'Midnight Truffles', category: 'Chocolate', description: 'Rich cocoa with a soft, dreamy center.', portion: 'Box of 8', price: 18, image: 'truffles', color: '#eee2d7', badge: 'Chocolate lovers', allergens: 'Milk, soy' },
+    { id: 'cookies', name: 'Cloud Nine Cookies', category: 'Cookies', description: 'Golden cookies dotted with chocolate.', portion: 'Box of 4', price: 12, image: 'cookies', color: '#efe9d9', badge: 'Comfort classic', allergens: 'Wheat, eggs, milk, soy' },
+    { id: 'cupcakes', name: 'Berry Blush Cupcakes', category: 'Cakes', description: 'Vanilla sponge, a swirl of berry frosting.', portion: 'Box of 4', price: 20, image: 'cupcakes', color: '#f4e0e6', badge: 'Pretty in pink', allergens: 'Wheat, eggs, milk' },
+    { id: 'chocolate', name: 'Pistachio Dream Bar', category: 'Chocolate', description: 'Chocolate meets a little nutty crunch.', portion: 'One 120 g bar', price: 9, image: 'chocolate', color: '#e5ebdd', badge: 'A little crunch', allergens: 'Milk, soy, pistachios' },
+    { id: 'cake', name: 'Strawberry Cloud Cake', category: 'Cakes', description: 'A mini layered cake for a sweet occasion.', portion: 'Mini cake · serves 2', price: 24, image: 'cake', color: '#eee4f2', badge: 'Celebrate small', allergens: 'Wheat, eggs, milk' },
+    { id: 'gift', name: 'Celebration Box', category: 'Gifts', description: 'A cheerful assortment for someone special.', portion: 'Mixed treat gift box', price: 28, image: 'gift', color: '#ece2ee', badge: 'Made for gifting', allergens: 'Milk, eggs, wheat, soy, nuts' }
+];
+function element(id) { const el = document.getElementById(id); if (!el)
+    throw new Error(`Missing element ${id}`); return el; }
+const money = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+const cartDialog = element('cart-dialog');
+const checkoutDialog = element('checkout-dialog');
+const successDialog = element('success-dialog');
+let cart = {};
+try {
+    const stored = JSON.parse(localStorage.getItem('sugar-cloud-cart') || '{}');
+    if (stored && typeof stored === 'object' && !Array.isArray(stored)) {
+        for (const product of products) {
+            const qty = stored[product.id];
+            if (typeof qty === 'number' && Number.isInteger(qty) && qty > 0 && qty <= 99)
+                cart[product.id] = qty;
+        }
+    }
+}
+catch { /* Continue with an empty bag when storage is unavailable. */ }
+let category = 'All';
+let toastTimer;
+function totals() { let subtotal = 0, count = 0; for (const p of products) {
+    const qty = cart[p.id] || 0;
+    subtotal += p.price * qty;
+    count += qty;
+} const delivery = subtotal === 0 || subtotal >= 35 ? 0 : 4.5; return { subtotal, delivery, total: subtotal + delivery, count }; }
+function persist() { try {
+    localStorage.setItem('sugar-cloud-cart', JSON.stringify(cart));
+}
+catch { } element('cart-count').textContent = String(totals().count); renderCart(); }
+function toast(message) { const el = element('toast'); el.textContent = message; el.classList.add('visible'); window.clearTimeout(toastTimer); toastTimer = window.setTimeout(() => el.classList.remove('visible'), 2600); }
+function add(id) { const p = products.find(p => p.id === id); if (!p)
+    return; if ((cart[id] || 0) >= 99) {
+    toast('Maximum 99 of each treat per demo order.');
+    return;
+} cart[id] = (cart[id] || 0) + 1; persist(); toast(`${p.name} added to your bag ♡`); }
+function renderProducts() { const term = element('search').value.trim().toLowerCase(); const sort = element('sort').value; let items = products.filter(p => p.category !== 'Gifts' && (category === 'All' || p.category === category) && `${p.name} ${p.description}`.toLowerCase().includes(term)); if (sort === 'low')
+    items.sort((a, b) => a.price - b.price); if (sort === 'high')
+    items.sort((a, b) => b.price - a.price); element('results').textContent = `${items.length} sweet ${items.length === 1 ? 'find' : 'finds'} · Illustrative catalog`; element('products').innerHTML = items.length ? items.map(p => `<article class="product"><div class="product-art" style="--bg:${p.color}"><img src="assets/${p.image}.svg" alt="Illustration of ${p.name}" loading="lazy"><span class="badge">${p.badge}</span></div><div class="product-meta"><div class="product-line"><h3>${p.name}</h3><strong>${money(p.price)}</strong></div><p>${p.description}</p><small>${p.portion}</small><small>Contains: ${p.allergens}</small><button class="add-button" data-add="${p.id}" aria-label="Add ${p.name} to bag">Add to bag <span>+</span></button></div></article>`).join('') : '<p class="empty">No treats found. Try a different category or search.</p>'; }
+function renderCart() { const t = totals(); element('cart-items').innerHTML = t.count ? products.filter(p => cart[p.id]).map(p => `<div class="cart-row"><img src="assets/${p.image}.svg" alt="${p.name}"><div><h3>${p.name}</h3><p>${money(p.price)} each</p><button class="remove" data-remove="${p.id}" aria-label="Remove ${p.name}">Remove</button></div><div><div class="quantity"><button data-change="${p.id}" data-delta="-1" aria-label="Decrease ${p.name} quantity">−</button><span>${cart[p.id]}</span><button data-change="${p.id}" data-delta="1" aria-label="Increase ${p.name} quantity">+</button></div><p>${money(p.price * cart[p.id])}</p></div></div>`).join('') : '<div class="empty">Your bag is waiting for a little happiness.<br>Explore the collection and add a treat ♡</div>'; element('cart-summary').innerHTML = t.count ? `<p class="delivery-note">${t.subtotal >= 35 ? 'Your demo order qualifies for free delivery ✦' : `Add ${money(35 - t.subtotal)} more for free demo delivery.`}</p><div class="total-row"><span>Subtotal</span><span>${money(t.subtotal)}</span></div><div class="total-row"><span>Demo delivery</span><span>${t.delivery ? money(t.delivery) : 'Free'}</span></div><div class="total-row final"><span>Total</span><span>${money(t.total)}</span></div>` : ''; element('checkout-open').disabled = !t.count; }
+document.querySelectorAll('[data-category]').forEach(button => button.addEventListener('click', () => { category = button.dataset.category || 'All'; document.querySelectorAll('[data-category]').forEach(b => b.classList.toggle('active', b === button)); renderProducts(); }));
+element('search').addEventListener('input', renderProducts);
+element('sort').addEventListener('change', renderProducts);
+element('products').addEventListener('click', event => { const button = event.target.closest('[data-add]'); if (button?.dataset.add)
+    add(button.dataset.add); });
+element('gift-add').addEventListener('click', () => add('gift'));
+element('cart-open').addEventListener('click', () => { renderCart(); cartDialog.showModal(); });
+element('cart-close').addEventListener('click', () => cartDialog.close());
+element('cart-items').addEventListener('click', event => { const button = event.target.closest('button'); if (!button)
+    return; const remove = button.dataset.remove; if (remove) {
+    delete cart[remove];
+    persist();
+    return;
+} const id = button.dataset.change; if (id && cart[id]) {
+    const qty = cart[id] + Number(button.dataset.delta);
+    if (qty > 99) {
+        toast('Maximum 99 of each treat per demo order.');
+        return;
+    }
+    if (qty <= 0)
+        delete cart[id];
+    else
+        cart[id] = qty;
+    persist();
+} });
+element('checkout-open').addEventListener('click', () => { if (!totals().count)
+    return; cartDialog.close(); element('checkout-total').textContent = `Demo total: ${money(totals().total)} · No payment required`; checkoutDialog.showModal(); });
+element('checkout-close').addEventListener('click', () => checkoutDialog.close());
+element('checkout-form').addEventListener('submit', event => { event.preventDefault(); if (!totals().count)
+    return; const form = event.currentTarget; if (!form.reportValidity())
+    return; const data = new FormData(form); const name = String(data.get('name') || '').trim(); const address = String(data.get('address') || '').trim(); if (!name || !address) {
+    toast('Please enter your name and delivery address.');
+    return;
+} const t = totals(); element('success-message').textContent = `Thanks, ${name}! Your demo box of ${t.count} ${t.count === 1 ? 'treat' : 'treats'} totals ${money(t.total)}.`; cart = {}; persist(); form.reset(); checkoutDialog.close(); successDialog.showModal(); });
+element('success-close').addEventListener('click', () => successDialog.close());
+renderProducts();
+persist();

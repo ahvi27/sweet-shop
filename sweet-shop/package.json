@@ -1,0 +1,1 @@
+{"name":"sugar-and-cloud","version":"1.0.0","private":true,"description":"A pastel sweet shop built with TypeScript","scripts":{"build":"tsc","dev":"npm run build && python3 -m http.server 5173 --directory dist","typecheck":"tsc --noEmit"},"devDependencies":{"typescript":"^5.9.3"}}
